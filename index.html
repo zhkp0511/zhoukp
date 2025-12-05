@@ -35,6 +35,24 @@
             padding-bottom: 10px;
         }
 
+        /* 3. 搜索框样式 */
+        #fileSearch {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 25px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box; /* 确保 padding 不会增加总宽度 */
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        #fileSearch:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+
         .loading, .error {
             text-align: center;
             padding: 20px;
@@ -42,7 +60,7 @@
             color: #6c757d;
         }
 
-        /* 3. 文件列表样式 */
+        /* 4. 文件列表样式 */
         .file-list {
             list-style: none;
             padding: 0;
@@ -61,7 +79,7 @@
             background-color: #f8f9fa; /* 悬停效果 */
         }
         
-        /* 4. 文件链接样式 */
+        /* 5. 文件链接样式 */
         .file-link {
             text-decoration: none;
             color: #495057;
@@ -76,7 +94,7 @@
             color: #007bff; /* 强调悬停色 */
         }
 
-        /* 5. 文件图标（使用简单符号代替） */
+        /* 6. 文件图标（使用简单符号代替） */
         .file-icon {
             margin-right: 10px;
             color: #28a745; /* 绿色代表文件 */
@@ -104,6 +122,9 @@
 
     <div class="container">
         <h1>📑 仓库文件目录</h1>
+        
+        <input type="text" id="fileSearch" placeholder="在此输入文件名搜索..." onkeyup="filterFiles()">
+        
         <ul id="fileList" class="file-list">
             <li class="loading">正在从GitHub加载文件目录...</li>
         </ul>
@@ -122,18 +143,11 @@
         const API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents`;
         const BASE_URL = `https://${GITHUB_USERNAME}.github.io/${REPO_NAME}/`; // GitHub Pages 基础 URL
         
-        /**
-         * 移除文件后缀名，例如 'file.html' -> 'file'
-         * @param {string} fileName - 完整文件名
-         * @returns {string} - 去掉后缀的文件名
-         */
+        // ----------------------------------------------------
+        // --- 辅助函数：移除文件后缀名 (与上一个版本相同) ---
+        // ----------------------------------------------------
         function removeExtension(fileName) {
             const parts = fileName.split('.');
-            // 如果文件名只有一个点或者没有点，则不处理
-            if (parts.length <= 1 || parts[0].length === 0) {
-                return fileName;
-            }
-            // 排除目录和特殊文件（如 .gitignore）
             if (parts.length > 1 && !fileName.startsWith('.')) {
                 parts.pop();
                 return parts.join('.');
@@ -141,13 +155,11 @@
             return fileName;
         }
 
-
         /**
          * 格式化 GitHub 文件对象并创建列表项
-         * @param {Object} item - GitHub API 返回的文件/目录对象
+         * (与上一个版本大致相同，但在 li 元素上添加了 data-name 属性用于搜索)
          */
         function createListItem(item) {
-            // 排除 README.md 和 .gitignore 这类系统文件
             if (item.name.toLowerCase() === 'readme.md' || item.name.startsWith('.')) {
                 return null;
             }
@@ -155,7 +167,6 @@
             const listItem = document.createElement('li');
             const link = document.createElement('a');
             
-            // 构建链接：使用 GitHub Pages 的 URL 结构
             const fileUrl = item.type === 'file' 
                 ? `${BASE_URL}${item.path}` 
                 : `${BASE_URL}${item.path}/`; 
@@ -170,19 +181,21 @@
             let fileTypeDisplay = '';
 
             if (item.type === 'file') {
-                iconSpan.innerHTML = '📄'; // 文件图标
+                iconSpan.innerHTML = '📄'; 
                 const extension = item.name.split('.').pop().toUpperCase();
                 
-                // --- ⭐ 关键修改：去除文件名中的后缀 ⭐ ---
                 fileNameDisplay = removeExtension(item.name);
                 fileTypeDisplay = extension;
-                // ------------------------------------
 
             } else if (item.type === 'dir') {
-                iconSpan.innerHTML = '📂'; // 文件夹图标
+                iconSpan.innerHTML = '📂'; 
                 iconSpan.classList.add('folder');
                 fileTypeDisplay = 'DIR';
             }
+            
+            // --- ⭐ 关键修改：存储用于搜索的原始文件名 (小写) ⭐ ---
+            listItem.setAttribute('data-name', item.name.toLowerCase());
+            // ---------------------------------------------------
 
             link.appendChild(iconSpan);
             link.appendChild(document.createTextNode(fileNameDisplay));
@@ -197,7 +210,7 @@
         }
 
         /**
-         * 获取并渲染文件列表
+         * 获取并渲染文件列表 (与上一个版本相同)
          */
         async function fetchFileList() {
             try {
@@ -209,7 +222,6 @@
 
                 const data = await response.json();
                 
-                // 清空加载提示
                 fileListElement.innerHTML = ''; 
 
                 if (data.message === "Not Found") {
@@ -217,9 +229,7 @@
                      return;
                 }
 
-                // 1. 先列出文件夹
                 const directories = data.filter(item => item.type === 'dir');
-                // 2. 再列出文件，并确保是 .html 文件或常见文件
                 const files = data.filter(item => 
                     item.type === 'file' && (
                         item.name.toLowerCase().endsWith('.html') ||
@@ -229,7 +239,6 @@
                     )
                 );
                 
-                // 合并并按字母排序
                 const sortedList = [...directories, ...files].sort((a, b) => a.name.localeCompare(b.name));
                 
                 if (sortedList.length === 0) {
@@ -248,8 +257,41 @@
                 fileListElement.innerHTML = `<li class="error">❌ 加载文件目录失败：${error.message}</li>`;
             }
         }
+        
+        // ----------------------------------------------------
+        // --- ⭐ 新增函数：文件筛选逻辑 ⭐ -------------------
+        // ----------------------------------------------------
 
-        fetchFileList();
+        /**
+         * 实时筛选文件列表
+         */
+        function filterFiles() {
+            const input = document.getElementById('fileSearch');
+            // 将搜索关键字转换为小写
+            const filter = input.value.toLowerCase(); 
+            const listItems = fileListElement.getElementsByTagName('li');
+
+            for (let i = 0; i < listItems.length; i++) {
+                const item = listItems[i];
+                // 排除加载或错误提示
+                if (item.classList.contains('loading') || item.classList.contains('error')) {
+                    continue; 
+                }
+
+                // 从 li 元素的 data-name 属性中获取原始文件名进行比较
+                const fileName = item.getAttribute('data-name'); 
+
+                if (fileName && fileName.includes(filter)) {
+                    item.style.display = 'flex'; // 显示匹配项
+                } else {
+                    item.style.display = 'none'; // 隐藏不匹配项
+                }
+            }
+        }
+
+        // ----------------------------------------------------
+        
+        fetchFileList(); // 页面加载时执行
     </script>
 </body>
 </html>

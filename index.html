@@ -121,6 +121,26 @@
         const fileListElement = document.getElementById('fileList');
         const API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents`;
         const BASE_URL = `https://${GITHUB_USERNAME}.github.io/${REPO_NAME}/`; // GitHub Pages 基础 URL
+        
+        /**
+         * 移除文件后缀名，例如 'file.html' -> 'file'
+         * @param {string} fileName - 完整文件名
+         * @returns {string} - 去掉后缀的文件名
+         */
+        function removeExtension(fileName) {
+            const parts = fileName.split('.');
+            // 如果文件名只有一个点或者没有点，则不处理
+            if (parts.length <= 1 || parts[0].length === 0) {
+                return fileName;
+            }
+            // 排除目录和特殊文件（如 .gitignore）
+            if (parts.length > 1 && !fileName.startsWith('.')) {
+                parts.pop();
+                return parts.join('.');
+            }
+            return fileName;
+        }
+
 
         /**
          * 格式化 GitHub 文件对象并创建列表项
@@ -136,8 +156,6 @@
             const link = document.createElement('a');
             
             // 构建链接：使用 GitHub Pages 的 URL 结构
-            // 如果是文件，直接链接到文件路径
-            // 如果是目录，链接到目录下的 index.html（如果有）或不链接
             const fileUrl = item.type === 'file' 
                 ? `${BASE_URL}${item.path}` 
                 : `${BASE_URL}${item.path}/`; 
@@ -154,7 +172,12 @@
             if (item.type === 'file') {
                 iconSpan.innerHTML = '📄'; // 文件图标
                 const extension = item.name.split('.').pop().toUpperCase();
+                
+                // --- ⭐ 关键修改：去除文件名中的后缀 ⭐ ---
+                fileNameDisplay = removeExtension(item.name);
                 fileTypeDisplay = extension;
+                // ------------------------------------
+
             } else if (item.type === 'dir') {
                 iconSpan.innerHTML = '📂'; // 文件夹图标
                 iconSpan.classList.add('folder');
